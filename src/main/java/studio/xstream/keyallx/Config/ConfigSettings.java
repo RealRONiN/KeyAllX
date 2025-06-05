@@ -5,7 +5,6 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import studio.xstream.keyallx.KeyAllX;
-import studio.xstream.keyallx.Metrics;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -30,14 +29,11 @@ public class ConfigSettings {
     private static boolean debug;
     private static List<String> message;
 
-    private static Metrics metrics;
 
     public static void reloadConfig(KeyAllX plugin) {
         plugin.reloadConfig();
         FileConfiguration config = plugin.getConfig();
 
-        if(metrics != null)
-            metrics.shutdown();
 
         timeInterval = config.getInt("timeInterval", 60);
         sound = getSound(config.getString("sound", "ENTITY_EXPERIENCE_ORB_PICKUP"));
@@ -68,12 +64,6 @@ public class ConfigSettings {
         if(message.isEmpty())
             message.add(translateColorCodes("&aCongratulations! You've been awarded a key as part of our Key All event!"));
 
-        if(!config.getBoolean("bStats"))
-            return;
-
-        plugin.getLogger().info("Loading Metrics / bStats");
-        metrics = new Metrics(plugin, 21830);
-        plugin.getLogger().info("Loaded Metrics / bStats");
     }
 
     public static int getTimeInterval() {

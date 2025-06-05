@@ -5,11 +5,6 @@
 # Only enable while testing or facing issues
 debug: false
 
-# bStats helps me collect info about my plugin
-# This won't affect your server at all
-# It is recommended to keep this on
-bStats: true
-
 # Time interval of the KeyAll event can be configured below
 # Time interval is in seconds
 timeInterval: 60
