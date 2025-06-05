@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import studio.xstream.keyallx.Config.ConfigSettings;
 import studio.xstream.keyallx.Config.ReminderObj;
 import studio.xstream.keyallx.Display.*;
@@ -20,9 +21,11 @@ public class KeyAllXManager {
     private final KeyTimer keyTimer;
     private final HashMap<Integer, ReminderObj> messages;
     private Integer taskId;
+    private Object taskHandle = null;
 
     public KeyAllXManager(KeyAllX plugin) {
         this.plugin = plugin;
+        MorePaperLib morePaperLib = new MorePaperLib(plugin);
         this.textDisplay = setupVersion();
         this.messages = new HashMap<>();
         reloadConfig(plugin.getConfig());
@@ -35,16 +38,64 @@ public class KeyAllXManager {
         Bukkit.getPluginManager().disablePlugin(plugin);
     }
 
-    public void startTimer(){
-        stopTimer();
-        taskId = Bukkit.getScheduler().runTaskTimer(plugin, keyTimer, 20, 20).getTaskId();
+    public void startTimer() {
+    stopTimer(); // Ensure any previously running timer is stopped.
+
+    boolean isFolia = false;
+        try {
+            // Check if Folia's global region scheduler is available
+            if (Bukkit.getServer().getClass().getMethod("getGlobalRegionScheduler") != null) {
+                isFolia = Bukkit.isGlobalRegionSchedulerAvailable();
+            }
+        } catch (NoSuchMethodException | SecurityException e) {
+            // Not a Folia-compatible server or an older version
+            isFolia = false;
+        }
+
+        if (isFolia) {
+            plugin.getLogger().info("Starting timer using Folia's GlobalRegionScheduler.");
+            // Assuming keyTimer is your Runnable
+            this.taskHandle = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, (scheduledTask) -> {
+                try {
+                    keyTimer.run();
+                } catch (Exception ex) {
+                    plugin.getLogger().severe("Error occurred in Folia scheduled task: " + ex.getMessage());
+                    ex.printStackTrace();
+                    // Optionally: scheduledTask.cancel();
+                }
+            }, 20L, 20L); // 20 ticks delay, 20 ticks period (1 second)
+        } else {
+            plugin.getLogger().info("Starting timer using Bukkit Scheduler.");
+            // Assuming keyTimer is your Runnable
+            BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimer(plugin, keyTimer, 20L, 20L);
+            this.taskHandle = bukkitTask.getTaskId();
+        }
     }
 
     public void stopTimer() {
-        if(taskId != null)
-            Bukkit.getScheduler().cancelTask(taskId);
+        if (taskHandle != null) {
+            if (taskHandle instanceof ScheduledTask) {
+                // Folia ScheduledTask
+                ((ScheduledTask) taskHandle).cancel();
+                plugin.getLogger().info("Folia timer task cancelled.");
+            } else if (taskHandle instanceof Integer) {
+                // Bukkit task ID
+                Bukkit.getScheduler().cancelTask((Integer) taskHandle);
+                plugin.getLogger().info("Bukkit timer task (ID: " + taskHandle + ") cancelled.");
+            } else {
+                plugin.getLogger().warning("Timer task handle was of an unknown type: " + taskHandle.getClass().getName());
+            }
+            taskHandle = null; // Clear the handle
+        }
 
-        keyTimer.assignInterval();
+        // Assuming your keyTimer object has an assignInterval method
+        // If keyTimer is just a Runnable and doesn't have this method, you'll need to adjust.
+        if (keyTimer instanceof YourKeyTimerClass) { // Replace YourKeyTimerClass with its actual class
+            ((YourKeyTimerClass) keyTimer).assignInterval();
+        } else {
+            // Handle the case where keyTimer doesn't have assignInterval, or log a warning
+            // plugin.getLogger().info("keyTimer.assignInterval() called (or would be if method existed).");
+        }
     }
 
     public int getTimerInterval(){
